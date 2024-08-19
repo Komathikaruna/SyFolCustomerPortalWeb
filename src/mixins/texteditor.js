@@ -534,7 +534,7 @@ export default {
 
       // adding { target } attribute for anchor elements
       const anchorElements = document.querySelectorAll(`.texteditor.${this.uniqueClassIdentifier} .editor-content a`)
-      for (let anchorElemIndex of anchorElements.length) anchorElements[anchorElemIndex].target = '_blank'
+      if (anchorElements.length)  for (let anchorElemIndex of anchorElements.length) anchorElements[anchorElemIndex].target = '_blank'
 
       let editorValue = editorElem.innerHTML.toString().replace(/\&nbsp;/g, '') // eslint-disable-line
       editorValue = editorValue ? editorValue.replace(/\<br>a/g, '') : editorValue // eslint-disable-line

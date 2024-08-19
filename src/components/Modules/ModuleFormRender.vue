@@ -775,7 +775,9 @@ export default {
           // eslint-disable-next-line
           element.isShowElement = new Function('data', 'instance', conditionScript)
         }
-      } catch {}
+      } catch (err) {
+        console.log('Error', err)
+      }
       // Validation Script manipulation
       if (element.validationscript) {
         if (element.validateon === 'blur') {
@@ -933,7 +935,7 @@ export default {
       this.$root.$emit('getAPIValues', { searchText, value, index })
     },
     // getValuesForModule (searchText, value, index) {
-    getValuesForModule ({ event, value, index, ref }) {
+    getValuesForModule ({ value, index, ref }) {
       this.skip = 0
       if (this.$refs[ref] && this.$refs[ref][0] && this.$refs[ref][0].lazySearch) {
         this.getValuesFromModule({

@@ -1,256 +1,240 @@
 <template>
-  <div>
-    <v-app-bar v-if="true"
-      app
-      color="#0184e2"
-    >
-      <v-app-bar-nav-icon dark></v-app-bar-nav-icon>
-      <span class="pt-1 white--text">SYFol</span>
-      <v-spacer></v-spacer>
-      <v-btn icon dark>
-        <v-icon>mdi-translate</v-icon>
-      </v-btn>
-      <v-btn icon dark @click="$router.push('/login')">
-        <v-icon>mdi-logout-variant</v-icon>
-      </v-btn>
-    </v-app-bar>
-    <v-main>
-      <v-card class="ma-3">
-        <v-card-title class="pa-1">
-          <v-btn color="#0184e2" height="27" width="27" outlined icon class="ml-3" @click="$router.go(-1)">
-            <v-icon color="#0184e2" size="16" > mdi-arrow-left </v-icon>
-          </v-btn>
-          <v-row no-gutters>
-            <v-col cols="1">
-              <v-list-item two-line>
-                <v-list-item-content>
-                  <v-list-item-title><v-icon v-text="incident.icon" class="pr-3"></v-icon>{{ incident.name }}</v-list-item-title>
-                  <v-list-item-subtitle class="ml-9">{{ incident.description }}</v-list-item-subtitle>
-                </v-list-item-content>
-              </v-list-item>
-            </v-col>
-            <v-spacer></v-spacer>
-            <v-col cols="2" class="text-end pt-3">
-              <v-text-field @keydown="preventSpecialCharacters($event)" ref="searchField" clearable append-icon="mdi-magnify"
-                @keyup.enter="filter.search = ticketSearchTerm" @click:append="filter.search = ticketSearchTerm" outlined rounded hide-details
-                dense single-line v-model="ticketSearchTerm" :label="$t('Search')" class="text-xs-right"
-                id="searchbtn" @click:clear="filter.search = ''" :loading="loading"></v-text-field>
-            </v-col>
-            <v-col cols="2" class="text-end pt-4">
-              <v-btn
-                outlined small
-                dense class="mr-3"
-                color="#0184e2"
-              >
-                <v-icon color="#0184e2" size="16"> mdi-filter </v-icon>
-                Filters
-              </v-btn>
-              <v-btn outlined small :color="systemDetails.themecolor" dark @click="$router.push(`/incident/create/${$route.params.incidentname}/${$route.params.incidentid}`)" class="mx-1">{{ $t('create') }} {{ incident.name }}</v-btn>
-            </v-col>
-          </v-row>
-        </v-card-title>
-        <v-divider></v-divider>
-        <v-card-text>
-          <v-card flat class="ma-1">
-            <v-card-text :class="hideFilterTabItem ? 'pa-0': 'pa-0'">
-              <template v-if="hideFilters && (accesscontrol ? accesscontrol.edit : true)">
-                <div style="flex-basis: 20%">
-                  <v-toolbar flat dense :color="$vuetify.theme.dark ? '' : 'grey lighten-2'">
-                    <v-btn class="ma-2"  @click="storePath('TASK')" tile text color="primary">
-                      <v-icon left>mdi-plus</v-icon> {{ $t('createTask') }}
-                    </v-btn>
-                    <v-btn class="ma-2" @click="storePath()" tile text color="success">
-                      <v-icon left>mdi-plus</v-icon> {{ $t('createTicket') }}
-                    </v-btn>
-                  </v-toolbar>
-                </div>
-              </template>
-              <v-card-text class="pa-0">
-                <v-data-table fixed-header v-model="selected" :headers="headers" :items="listOfTickets" item-key="id" show-select class="common checkboxPaddingTicket" :class="{ 'dark-theme': $vuetify.theme.dark }"
-                  :items-per-page="pagination.itemsPerPage"
-                  :server-items-length="total >= 0 ? total : undefined"
-                  :page="pagination.page"
-                  :footer-props="paginationList"
-                  :loading="loading" :must-sort="true"
-                  @update:options="paginationOptionsChanged"
-                >
-                  <template #top v-if="selected.length">
-                    <v-toolbar :elevation="5" :color="!!selected.length ? systemDetails.themecolor : 'white'" dense>
-                      <v-slide-y-transition v-if="selected.length">
-                        <v-btn icon @click="clearSelected">
-                          <v-icon color="white">mdi-close</v-icon>
-                        </v-btn>
-                      </v-slide-y-transition>
-                      <v-slide-y-transition>
-                        <v-toolbar-title v-if="selected.length">
-                          <div class="white--text">{{ `${selected.length} ${$t('selected')}` }}</div>
-                        </v-toolbar-title>
-                      </v-slide-y-transition>
-                      <v-row class="text-end">
-                        <v-col cols="12">
-                          <v-btn class="ml-2" v-for="(item, index) in menuList" @click="menuActions(item.value)" :key="index" small>
-                            <v-icon>{{ item.icon }}</v-icon>
-                            {{ item.title }}
-                          </v-btn>
-                        </v-col>
-                      </v-row>
-                    </v-toolbar>
-                  </template>
-                  <template v-slot:body="{ items }" v-if="listOfTickets.length > 0">
-                    <tbody :style="loading ? 'pointer-events: none;' : 'pointer-events: all;'">
-                      <tr v-for="(ticket, index) in items" :key="index" :disabled="loading">
-                        <td style="width:1%">
-                          <div class="d-flex">
-                            <v-checkbox v-model="ticket.isSelected" @change="addToSelected($event, ticket)" hide-details color="primary"></v-checkbox>
-                            <v-icon v-if="!ticket.is_task" small>mdi-palette-swatch</v-icon>
-                            <v-icon v-if="ticket.is_task" small>mdi-clipboard-check</v-icon>
-                          </div>
-                        </td>
-                        <td style="width:4%">
-                          <a @click="navigateToTicket(ticket.id,ticket.mailboxid,ticket.outlookconversationid)" class="underline">{{ ticket.number }}</a>
-                          <!-- <a @click="navigateToTicket(ticket.id)" class="underline">{{ ticket.number }} {{!ticket.is_task ? `(${ticket.totalmailcount})`: ''}}</a> -->
-                          <v-icon v-if="!ticket.lastmailfromcustomer" small> mdi-reply</v-icon>
-                          <!-- {{ incident.name }} {{ incident.icon }} {{  incident.name !== 'Ticket' }} -->
-                          <v-icon v-if="incident.name !== 'Ticket'" small>{{ incident.icon }}</v-icon>
-                          <v-icon v-if="ticket.hasattachments" small>mdi-attachment mdi-rotate-315</v-icon>
-                        </td>
-                        <td style="width:6%" @click="ticket.showStatus = true">
-                          <template v-if="ticket.showStatus">
-                            <v-autocomplete v-model="ticket.status" :items="getListOfTicketStatus.filter(x => x.incidenttypeid === $route.query.incidenttypeid)" item-text="name" item-value="_id" dense hide-details full-width class="select-font"
-                              @change="updateTickets(ticket.id, index, 'status')" @blur="ticket.showStatus = false"></v-autocomplete>
-                          </template>
-                          <template v-else>
-                            <v-chip class="ma-2" :color="ticket.statuscolor" dark small :text-color="$formatter.foreGroundColor(ticket.statuscolor)" v-if="ticket.statusname">{{ ticket.statusname }}</v-chip>
-                          </template>
-                        </td>
-                        <td style="width:3%">
-                          <a @click="openCommentsDialog(ticket.id)">{{ticket.totalcommentscount}}</a>
-                        </td>
-                        <td style="width:6%" v-if="incidenttype === 'Ticket'">{{ ticket.from  }}</td>
-                        <td class="v-toolbar__title overflow-td" style="width:8%" :class="ticket.hasunread ? 'font-weight-black': ''">
-                          <a @click="navigateToTicket(ticket.id,ticket.mailboxid,ticket.outlookconversationid)" class="underline">{{ ticket.subject }}</a>
-                        </td>
-                        <td  style="width:7%"  @click="ticket.showAssignedTo = true">
-                          <template v-if="ticket.showAssignedTo">
-                            <v-autocomplete v-model="ticket.assignedto" :items="listOfUserAndGroups" item-text="name" item-value="alternateid" dense hide-details full-width class="select-font"
-                              @change="updateTickets(ticket.id, index, 'assignedto')" @blur="ticket.showAssignedTo = false"></v-autocomplete>
-                          </template>
-                          <template v-else>
-                            <span>{{ticket.assignedtoname}}</span>
-                            <span>{{ticket.assignedto_group_name}}</span>
-                          </template>
-                        </td>
-                        <td @click="showAccount(index)" v-if="!fromSubmodule || !accountId" style="width:6%">
-                          <template v-if="ticket.showAccount">
-                            <v-autocomplete v-model="ticket.account_id" :items="getAccountListName" :ref="`ticket_assignedTo_${index}`"
-                              item-value="_id" dense hide-details full-width class="select-font" item-text="name"
-                              @blur="ticket.showAccount = false"
-                              @click="searchTerm ? '' : getAccountListValue()"
-                              @change="updateTickets(ticket.id, index, 'account')"  @keydown="preventSpecialCharacters($event)" :search-input.sync="searchTerm"
-                              @keyup="$event.keyCode !== 13 && $event.keyCode !== 38 && $event.keyCode !== 40 ? getAccountListValue() : ''" >
-                              <template v-slot:append-item>
-                                <div v-intersect="onIntersect" class="pa-0 teal--text" />
-                              </template>
-                              <!-- <template v-slot:append-item v-if="shouldShowLoadMore">
-                                <div class="pl-4 teal--text" @mousedown.prevent @click="loadMore()">Load more</div>
-                              </template> -->
-                            </v-autocomplete>
-                          </template>
-                          <template v-else>
-                            {{ ticket.account_name }} {{ticket.account_type ? `(${$t(ticket.account_type)})` : ''}}
-                          </template>
-                        </td>
-                        <td style="width:6%" @click="ticket.showPriority = true">
-                          <template v-if="ticket.showPriority">
-                            <v-autocomplete v-model="ticket.priority" :items="getListOfTicketPriorities.filter(x => x.incidenttypeid === $route.query.incidenttypeid)" item-text="name" item-value="_id" dense hide-details full-width class="select-font"
-                              @change="updateTickets(ticket.id, index, 'priority')" @blur="ticket.showPriority = false"></v-autocomplete>
-                          </template>
-                          <template v-else>
-                            <v-chip v-if="ticket.prioritycolor" class="ma-2" :color="ticket.prioritycolor" dark small :text-color="$formatter.foreGroundColor(ticket.prioritycolor)">
-                              {{ ticket.priorityname }}
-                            </v-chip>
-                          </template>
-                        </td>
-                        <td style="width:6%" @click="ticket.showCategory = true">
-                          <template v-if="ticket.showCategory">
-                            <v-autocomplete v-model="ticket.category_id" :items="getListOfTicketCategory.filter(x => x.incidenttypeid === $route.query.incidenttypeid)" item-text="name" item-value="_id" dense hide-details full-width class="select-font"
-                              @change="updateTickets(ticket.id, index, 'category')" @blur="ticket.showCategory = false"></v-autocomplete>
-                          </template>
-                          <template v-else>
-                            {{ ticket.categoryname }}
-                          </template>
-                        </td>
-                        <td style="width:7%">{{ $formatter.formatDate(ticket.modified_at, 'DD.MM.YYYYTHH.mm.ss', `DD.MM.YYYY HH:mm`) }}</td>
-                        <td style="width:7%" v-if="incidenttype === 'Ticket'">{{ $formatter.formatDate(ticket.lastrepliedon,'DD.MM.YYYYTHH.mm.ss', `${userDetails.dateformat} HH:mm`) }}</td>
-                        <td style="width:7%">{{ ticket.modifiedbyname }}</td>
-                      </tr>
-                    </tbody>
-                  </template>
-                  <template v-slot:no-data>
-                      <span>{{ $t('noData') }}</span>
-                  </template>
-                  <template v-slot:footer v-if="incidenttype == 'Ticket'">
-                    <p style="position: absolute" class="ml-3 mt-5" h3>{{$t('missingTickets')}}
-                      <a v-if="!ticketSyncing" style="text-decoration:underline" @click="syncTickets">{{ $t('doSync') }}</a>
-                      <v-progress-circular v-else indeterminate  size="15" color="#0D47A1"></v-progress-circular>
-                    </p>
-                  </template>
-                </v-data-table>
-              </v-card-text>
-              <!-- Status close confirm -->
-              <v-dialog v-model="cancloseDialog" persistent width="400" class="mt-0">
-                <v-card>
-                  <v-card-title>
-                  {{ $t('confirmation') }}
-                  </v-card-title>
-                  <v-divider></v-divider>
-                  <v-card-text class="pa-5">
-                    <h4>{{ $t('noUserAssigned') }}</h4>
-                  </v-card-text>
-                  <v-divider></v-divider>
-                  <v-card-actions>
-                    <v-flex class="text-center">
-                      <v-btn class="mr-3" color="info" @click="updateCanCloseStatusHandler()" :loading="cancloseLoading">{{ $t('yes') }}</v-btn>
-                      <v-btn color="error" @click="closeConfirmDialog">{{ $t('close') }}</v-btn>
-                    </v-flex>
-                  </v-card-actions>
-                </v-card>
-              </v-dialog>
-              <!-- Comments dialog-->
-              <v-dialog v-model="commentsDialog" persistent width="500">
-                <v-card flat class="pa-0">
-                  <v-card-title :style="`background-color: ${systemDetails.themecolor}; color: ${systemDetails.textcolor}`">
-                    {{ $t('comments') }}
-                    <v-spacer></v-spacer>
-                    <v-btn small dark @click="commentsDialog = false" icon :color="systemDetails.textcolor"><v-icon>mdi-close-circle-outline</v-icon></v-btn>
-                  </v-card-title>
-                  <v-divider></v-divider>
-                  <v-card-text>
-                    <v-progress-linear class="mt-1" color="primary" indeterminate v-if="loadingComments"></v-progress-linear>
-                    <!-- <comments-section class="pt-2" :isView="true" @reloadComments="reloadCommentCount(ticketId)" :ticket_id="ticketId" :ticketNumber="0" :assignedto="0" :key="reloadCommentDialog"></comments-section> -->
-                  </v-card-text>
-                  <v-divider></v-divider>
-                  <v-card-actions>
-                    <v-flex class="text-center">
-                      <v-btn color="error" @click="commentsDialog = false">{{ $t('close')}}</v-btn>
-                    </v-flex>
-                  </v-card-actions>
-                </v-card>
-              </v-dialog>
-            </v-card-text>
-              <v-snackbar color="black" v-model="newTicketPopup" :timeout="-1" top class="pa-2">
-                <v-alert class="pa-2 mb-0 white--text" color="black">{{ $t('newTicketFound') }}</v-alert>
-                <template v-slot:action="{ attrs }">
-                  <v-btn color="red" class="mr-9" text v-bind="attrs" icon @click="syncTickets()">
-                    {{ $t('refresh') }}
+  <div class="pa-3">
+    <v-card>
+      <v-card-title class="pa-1">
+        <v-btn color="#0184e2" height="27" width="27" outlined icon class="ml-3" @click="$router.go(-1)">
+          <v-icon color="#0184e2" size="16" > mdi-arrow-left </v-icon>
+        </v-btn>
+        <v-row no-gutters>
+          <v-col cols="1">
+            <v-list-item two-line>
+              <v-list-item-content>
+                <v-list-item-title><v-icon v-text="incident.icon" class="pr-3"></v-icon>{{ incident.name }}</v-list-item-title>
+                <v-list-item-subtitle class="ml-9">{{ incident.description }}</v-list-item-subtitle>
+              </v-list-item-content>
+            </v-list-item>
+          </v-col>
+          <v-spacer></v-spacer>
+          <v-col cols="2" class="text-end pt-3">
+            <v-text-field @keydown="preventSpecialCharacters($event)" ref="searchField" clearable append-icon="mdi-magnify"
+              @keyup.enter="filter.search = ticketSearchTerm" @click:append="filter.search = ticketSearchTerm" outlined rounded hide-details
+              dense single-line v-model="ticketSearchTerm" :label="$t('Search')" class="text-xs-right"
+              id="searchbtn" @click:clear="filter.search = ''" :loading="loading"></v-text-field>
+          </v-col>
+          <v-col cols="2" class="text-end pt-4">
+            <v-btn
+              outlined small
+              dense class="mr-3"
+              color="#0184e2"
+            >
+              <v-icon color="#0184e2" size="16"> mdi-filter </v-icon>
+              Filters
+            </v-btn>
+            <v-btn outlined small :color="systemDetails.themecolor" dark @click="$router.push(`/incident/create/${$route.params.incidentname}/${$route.params.incidentid}`)" class="mx-1">{{ $t('create') }} {{ incident.name }}</v-btn>
+          </v-col>
+        </v-row>
+      </v-card-title>
+      <v-divider></v-divider>
+      <v-card-text>
+        <v-card flat class="ma-1">
+          <v-card-text :class="hideFilterTabItem ? 'pa-0': 'pa-0'">
+            <template v-if="hideFilters && (accesscontrol ? accesscontrol.edit : true)">
+              <div style="flex-basis: 20%">
+                <v-toolbar flat dense :color="$vuetify.theme.dark ? '' : 'grey lighten-2'">
+                  <v-btn class="ma-2"  @click="storePath('TASK')" tile text color="primary">
+                    <v-icon left>mdi-plus</v-icon> {{ $t('createTask') }}
                   </v-btn>
-                  <v-icon class="white--text mr-3" @click="newTicketPopup=false">mdi-close</v-icon>
+                  <v-btn class="ma-2" @click="storePath()" tile text color="success">
+                    <v-icon left>mdi-plus</v-icon> {{ $t('createTicket') }}
+                  </v-btn>
+                </v-toolbar>
+              </div>
+            </template>
+            <v-card-text class="pa-0">
+              <v-data-table fixed-header v-model="selected" :headers="headers" :items="listOfTickets" item-key="id" show-select class="common checkboxPaddingTicket" :class="{ 'dark-theme': $vuetify.theme.dark }"
+                :items-per-page="pagination.itemsPerPage"
+                :server-items-length="total >= 0 ? total : undefined"
+                :page="pagination.page"
+                :footer-props="paginationList"
+                :loading="loading" :must-sort="true"
+                @update:options="paginationOptionsChanged"
+              >
+                <template #top v-if="selected.length">
+                  <v-toolbar :elevation="5" :color="!!selected.length ? systemDetails.themecolor : 'white'" dense>
+                    <v-slide-y-transition v-if="selected.length">
+                      <v-btn icon @click="clearSelected">
+                        <v-icon color="white">mdi-close</v-icon>
+                      </v-btn>
+                    </v-slide-y-transition>
+                    <v-slide-y-transition>
+                      <v-toolbar-title v-if="selected.length">
+                        <div class="white--text">{{ `${selected.length} ${$t('selected')}` }}</div>
+                      </v-toolbar-title>
+                    </v-slide-y-transition>
+                    <v-row class="text-end">
+                      <v-col cols="12">
+                        <v-btn class="ml-2" v-for="(item, index) in menuList" @click="menuActions(item.value)" :key="index" small>
+                          <v-icon>{{ item.icon }}</v-icon>
+                          {{ item.title }}
+                        </v-btn>
+                      </v-col>
+                    </v-row>
+                  </v-toolbar>
                 </template>
-              </v-snackbar>
-          </v-card>
-        </v-card-text>
-      </v-card>
-    </v-main>
+                <template v-slot:body="{ items }" v-if="listOfTickets.length > 0">
+                  <tbody :style="loading ? 'pointer-events: none;' : 'pointer-events: all;'">
+                    <tr v-for="(ticket, index) in items" :key="index" :disabled="loading">
+                      <td style="width:1%">
+                        <div class="d-flex">
+                          <v-checkbox v-model="ticket.isSelected" @change="addToSelected($event, ticket)" hide-details color="primary"></v-checkbox>
+                          <v-icon v-if="!ticket.is_task" small>mdi-palette-swatch</v-icon>
+                          <v-icon v-if="ticket.is_task" small>mdi-clipboard-check</v-icon>
+                        </div>
+                      </td>
+                      <td style="width:4%">
+                        <a @click="navigateToTicket(ticket.id,ticket.mailboxid,ticket.outlookconversationid)" class="underline">{{ ticket.number }}</a>
+                        <!-- <a @click="navigateToTicket(ticket.id)" class="underline">{{ ticket.number }} {{!ticket.is_task ? `(${ticket.totalmailcount})`: ''}}</a> -->
+                        <v-icon v-if="!ticket.lastmailfromcustomer" small> mdi-reply</v-icon>
+                        <!-- {{ incident.name }} {{ incident.icon }} {{  incident.name !== 'Ticket' }} -->
+                        <v-icon v-if="incident.name !== 'Ticket'" small>{{ incident.icon }}</v-icon>
+                        <v-icon v-if="ticket.hasattachments" small>mdi-attachment mdi-rotate-315</v-icon>
+                      </td>
+                      <td style="width:6%" @click="ticket.showStatus = true">
+                        <template v-if="ticket.showStatus">
+                          <v-autocomplete v-model="ticket.status" :items="getListOfTicketStatus.filter(x => x.incidenttypeid === $route.query.incidenttypeid)" item-text="name" item-value="_id" dense hide-details full-width class="select-font"
+                            @change="updateTickets(ticket.id, index, 'status')" @blur="ticket.showStatus = false"></v-autocomplete>
+                        </template>
+                        <template v-else>
+                          <v-chip class="ma-2" :color="ticket.statuscolor" dark small :text-color="$formatter.foreGroundColor(ticket.statuscolor)" v-if="ticket.statusname">{{ ticket.statusname }}</v-chip>
+                        </template>
+                      </td>
+                      <td style="width:3%">
+                        <a @click="openCommentsDialog(ticket.id)">{{ticket.totalcommentscount}}</a>
+                      </td>
+                      <td style="width:6%" v-if="incidenttype === 'Ticket'">{{ ticket.from  }}</td>
+                      <td class="v-toolbar__title overflow-td" style="width:8%" :class="ticket.hasunread ? 'font-weight-black': ''">
+                        <a @click="navigateToTicket(ticket.id,ticket.mailboxid,ticket.outlookconversationid)" class="underline">{{ ticket.subject }}</a>
+                      </td>
+                      <td  style="width:7%"  @click="ticket.showAssignedTo = true">
+                        <template v-if="ticket.showAssignedTo">
+                          <v-autocomplete v-model="ticket.assignedto" :items="listOfUserAndGroups" item-text="name" item-value="alternateid" dense hide-details full-width class="select-font"
+                            @change="updateTickets(ticket.id, index, 'assignedto')" @blur="ticket.showAssignedTo = false"></v-autocomplete>
+                        </template>
+                        <template v-else>
+                          <span>{{ticket.assignedtoname}}</span>
+                          <span>{{ticket.assignedto_group_name}}</span>
+                        </template>
+                      </td>
+                      <td @click="showAccount(index)" v-if="!fromSubmodule || !accountId" style="width:6%">
+                        <template v-if="ticket.showAccount">
+                          <v-autocomplete v-model="ticket.account_id" :items="getAccountListName" :ref="`ticket_assignedTo_${index}`"
+                            item-value="_id" dense hide-details full-width class="select-font" item-text="name"
+                            @blur="ticket.showAccount = false"
+                            @click="searchTerm ? '' : getAccountListValue()"
+                            @change="updateTickets(ticket.id, index, 'account')"  @keydown="preventSpecialCharacters($event)" :search-input.sync="searchTerm"
+                            @keyup="$event.keyCode !== 13 && $event.keyCode !== 38 && $event.keyCode !== 40 ? getAccountListValue() : ''" >
+                            <template v-slot:append-item>
+                              <div v-intersect="onIntersect" class="pa-0 teal--text" />
+                            </template>
+                            <!-- <template v-slot:append-item v-if="shouldShowLoadMore">
+                              <div class="pl-4 teal--text" @mousedown.prevent @click="loadMore()">Load more</div>
+                            </template> -->
+                          </v-autocomplete>
+                        </template>
+                        <template v-else>
+                          {{ ticket.account_name }} {{ticket.account_type ? `(${$t(ticket.account_type)})` : ''}}
+                        </template>
+                      </td>
+                      <td style="width:6%" @click="ticket.showPriority = true">
+                        <template v-if="ticket.showPriority">
+                          <v-autocomplete v-model="ticket.priority" :items="getListOfTicketPriorities.filter(x => x.incidenttypeid === $route.query.incidenttypeid)" item-text="name" item-value="_id" dense hide-details full-width class="select-font"
+                            @change="updateTickets(ticket.id, index, 'priority')" @blur="ticket.showPriority = false"></v-autocomplete>
+                        </template>
+                        <template v-else>
+                          <v-chip v-if="ticket.prioritycolor" class="ma-2" :color="ticket.prioritycolor" dark small :text-color="$formatter.foreGroundColor(ticket.prioritycolor)">
+                            {{ ticket.priorityname }}
+                          </v-chip>
+                        </template>
+                      </td>
+                      <td style="width:6%" @click="ticket.showCategory = true">
+                        <template v-if="ticket.showCategory">
+                          <v-autocomplete v-model="ticket.category_id" :items="getListOfTicketCategory.filter(x => x.incidenttypeid === $route.query.incidenttypeid)" item-text="name" item-value="_id" dense hide-details full-width class="select-font"
+                            @change="updateTickets(ticket.id, index, 'category')" @blur="ticket.showCategory = false"></v-autocomplete>
+                        </template>
+                        <template v-else>
+                          {{ ticket.categoryname }}
+                        </template>
+                      </td>
+                      <td style="width:7%">{{ $formatter.formatDate(ticket.modified_at, 'DD.MM.YYYYTHH.mm.ss', `DD.MM.YYYY HH:mm`) }}</td>
+                      <td style="width:7%" v-if="incidenttype === 'Ticket'">{{ $formatter.formatDate(ticket.lastrepliedon,'DD.MM.YYYYTHH.mm.ss', `${userDetails.dateformat} HH:mm`) }}</td>
+                      <td style="width:7%">{{ ticket.modifiedbyname }}</td>
+                    </tr>
+                  </tbody>
+                </template>
+                <template v-slot:no-data>
+                    <span>{{ $t('noData') }}</span>
+                </template>
+                <template v-slot:footer v-if="incidenttype == 'Ticket'">
+                  <p style="position: absolute" class="ml-3 mt-5" h3>{{$t('missingTickets')}}
+                    <a v-if="!ticketSyncing" style="text-decoration:underline" @click="syncTickets">{{ $t('doSync') }}</a>
+                    <v-progress-circular v-else indeterminate  size="15" color="#0D47A1"></v-progress-circular>
+                  </p>
+                </template>
+              </v-data-table>
+            </v-card-text>
+            <!-- Status close confirm -->
+            <v-dialog v-model="cancloseDialog" persistent width="400" class="mt-0">
+              <v-card>
+                <v-card-title>
+                {{ $t('confirmation') }}
+                </v-card-title>
+                <v-divider></v-divider>
+                <v-card-text class="pa-5">
+                  <h4>{{ $t('noUserAssigned') }}</h4>
+                </v-card-text>
+                <v-divider></v-divider>
+                <v-card-actions>
+                  <v-flex class="text-center">
+                    <v-btn class="mr-3" color="info" @click="updateCanCloseStatusHandler()" :loading="cancloseLoading">{{ $t('yes') }}</v-btn>
+                    <v-btn color="error" @click="closeConfirmDialog">{{ $t('close') }}</v-btn>
+                  </v-flex>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
+            <!-- Comments dialog-->
+            <v-dialog v-model="commentsDialog" persistent width="500">
+              <v-card flat class="pa-0">
+                <v-card-title :style="`background-color: ${systemDetails.themecolor}; color: ${systemDetails.textcolor}`">
+                  {{ $t('comments') }}
+                  <v-spacer></v-spacer>
+                  <v-btn small dark @click="commentsDialog = false" icon :color="systemDetails.textcolor"><v-icon>mdi-close-circle-outline</v-icon></v-btn>
+                </v-card-title>
+                <v-divider></v-divider>
+                <v-card-text>
+                  <v-progress-linear class="mt-1" color="primary" indeterminate v-if="loadingComments"></v-progress-linear>
+                  <!-- <comments-section class="pt-2" :isView="true" @reloadComments="reloadCommentCount(ticketId)" :ticket_id="ticketId" :ticketNumber="0" :assignedto="0" :key="reloadCommentDialog"></comments-section> -->
+                </v-card-text>
+                <v-divider></v-divider>
+                <v-card-actions>
+                  <v-flex class="text-center">
+                    <v-btn color="error" @click="commentsDialog = false">{{ $t('close')}}</v-btn>
+                  </v-flex>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
+          </v-card-text>
+            <v-snackbar color="black" v-model="newTicketPopup" :timeout="-1" top class="pa-2">
+              <v-alert class="pa-2 mb-0 white--text" color="black">{{ $t('newTicketFound') }}</v-alert>
+              <template v-slot:action="{ attrs }">
+                <v-btn color="red" class="mr-9" text v-bind="attrs" icon @click="syncTickets()">
+                  {{ $t('refresh') }}
+                </v-btn>
+                <v-icon class="white--text mr-3" @click="newTicketPopup=false">mdi-close</v-icon>
+              </template>
+            </v-snackbar>
+        </v-card>
+      </v-card-text>
+    </v-card>
   </div>
 </template>
 <script>

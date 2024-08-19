@@ -1,42 +1,25 @@
 <!-- eslint-disable no-prototype-builtins -->
 <template>
-  <div class="pa-1">
-    <v-app-bar v-if="true"
-      app
-      color="#0184e2"
-    >
-      <v-app-bar-nav-icon dark></v-app-bar-nav-icon>
-      <span class="pt-1 white--text">SYFol</span>
-      <v-spacer></v-spacer>
-      <v-btn icon dark>
-        <v-icon>mdi-translate</v-icon>
-      </v-btn>
-      <v-btn icon dark @click="$router.push('/login')">
-        <v-icon>mdi-logout-variant</v-icon>
-      </v-btn>
-    </v-app-bar>
-    <v-main>
-      <v-progress-linear indeterminate color="primary" v-if="fieldsLoading"></v-progress-linear>
-      <form-template :references.sync="formReferences" :model="ticketObj" ref="ticketReference">
-        <template slot="ticketCustomFields">
-          <v-container class="grid-list-xl pa-1 my-4">
-            <module-render :listOfFields="listOfFields" :key="reInit" :fields.sync="customFieldsDataModel" :isRecordCreation="true" :moduleName="moduleName" :isCreateTicket="true" @files-uploaded="handleFiles" ref="ticketReference12"></module-render>
-          </v-container>
-        </template>
-        <template slot="extraDetails">
-          <v-container class="grid-list-xl pa-0">
-            <v-checkbox v-model="customFieldsDataModel.deleteparentticket" :label="$t('ticketDeleteConfirm')" class="pb-1" hide-details v-if="$route.query && $route.query.converttask"></v-checkbox>
-            <v-checkbox v-model="customFieldsDataModel.deleteparenttask" :label="$t('taskDeleteConfirm')" class="pb-1" hide-details v-if="$route.query && $route.query.convertticket"></v-checkbox>
-          </v-container>
-        </template>
-      </form-template>
-    </v-main>
+  <div class="pa-3">
+    <v-progress-linear indeterminate color="primary" v-if="fieldsLoading"></v-progress-linear>
+    <form-template :references.sync="formReferences" :model="ticketObj" ref="ticketReference">
+      <template slot="ticketCustomFields">
+        <v-container class="grid-list-xl pa-1 my-4">
+          <module-render :listOfFields="listOfFields" :key="reInit" :fields.sync="customFieldsDataModel" :isRecordCreation="true" :moduleName="moduleName" :isCreateTicket="true" @files-uploaded="handleFiles" ref="ticketReference12"></module-render>
+        </v-container>
+      </template>
+      <template slot="extraDetails">
+        <v-container class="grid-list-xl pa-0">
+          <v-checkbox v-model="customFieldsDataModel.deleteparentticket" :label="$t('ticketDeleteConfirm')" class="pb-1" hide-details v-if="$route.query && $route.query.converttask"></v-checkbox>
+          <v-checkbox v-model="customFieldsDataModel.deleteparenttask" :label="$t('taskDeleteConfirm')" class="pb-1" hide-details v-if="$route.query && $route.query.convertticket"></v-checkbox>
+        </v-container>
+      </template>
+    </form-template>
   </div>
 </template>
 <script>
 import { mapGetters } from 'vuex'
 import FormTemplate from '../../components/FormTemplate'
-// import Editor from '../../ckeditor'
 import CommonFunctions from './mixin'
 export default {
   mixins: [CommonFunctions],
@@ -49,7 +32,6 @@ export default {
         body: ''
       },
       loading: false,
-      // editor: Editor,
       loader: false,
       emailRegex: /^([A-Za-z0-9_\-.+])+@([A-Za-z0-9_\-.])+\.([A-Za-z]{2,})$/,
       listOfAccounts: [],
